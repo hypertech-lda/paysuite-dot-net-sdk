@@ -1,9 +1,23 @@
+
 name: Publish PaySuite SDK to NuGet
 
 on:
   push:
     tags:
       - 'v*'
+
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (e.g. 0.1.6). Required only when publishing manually.'
+        required: false
+        type: string
+
+      publish:
+        description: 'Publish the package to NuGet. Leave disabled to test authentication only.'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -12,15 +26,18 @@ jobs:
   publish:
     name: Build, Test and Publish
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
 
     permissions:
       contents: read
       id-token: write
 
     steps:
+      # 1. Checkout
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      # 2. Install .NET SDKs
       - name: Setup .NET SDKs
         uses: actions/setup-dotnet@v6
         with:
@@ -28,34 +45,68 @@ jobs:
             8.0.x
             10.0.x
 
+      # 3. Restore
       - name: Restore dependencies
         run: dotnet restore PaySuite.Sdk.slnx
 
+      # 4. Build
       - name: Build solution
         run: dotnet build PaySuite.Sdk.slnx --configuration Release --no-restore
 
+      # 5. Test
       - name: Run tests
         run: dotnet test PaySuite.Sdk.slnx --configuration Release --no-build --no-restore
 
+      # 6. Determine version and pack
       - name: Pack NuGet package
         env:
-          VERSION: ${{ github.ref_name }}
+          MANUAL_VERSION: ${{ inputs.version }}
+          MANUAL_PUBLISH: ${{ inputs.publish }}
+        shell: bash
         run: |
-          VERSION="${VERSION#v}"
-          dotnet pack src/PaySuite.Sdk/PaySuite.Sdk.csproj \
-            --configuration Release \
-            --no-build \
-            --output ./artifacts \
-            -p:PackageVersion="$VERSION"
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="$MANUAL_VERSION"
+          fi
 
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$MANUAL_PUBLISH" == "true" && -z "$VERSION" ]]; then
+            echo "::error::A version is required when manual publishing is enabled."
+            exit 1
+          fi
+
+          mkdir -p ./artifacts
+
+          if [[ -n "$VERSION" ]]; then
+            echo "Packing version: $VERSION"
+
+            dotnet pack src/PaySuite.Sdk/PaySuite.Sdk.csproj \
+              --configuration Release \
+              --no-build \
+              --output ./artifacts \
+              -p:PackageVersion="$VERSION"
+          else
+            echo "Using the version defined in the project file."
+
+            dotnet pack src/PaySuite.Sdk/PaySuite.Sdk.csproj \
+              --configuration Release \
+              --no-build \
+              --output ./artifacts
+          fi
+
+      # 7. NuGet Trusted Publishing authentication
       - name: NuGet login (Trusted Publishing)
         uses: NuGet/login@v1
         id: login
         with:
-          user: LazaroMagaia
+          user: Hypertech
+
+      # 8. Publish only on tag push or when explicitly enabled manually
       - name: Publish to NuGet
+        if: github.event_name == 'push' || inputs.publish == true
         env:
           NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        shell: bash
         run: |
           dotnet nuget push ./artifacts/*.nupkg \
             --api-key "$NUGET_API_KEY" \
