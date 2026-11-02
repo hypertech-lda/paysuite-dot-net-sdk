@@ -18,12 +18,13 @@ https://paysuite.tech/docs
 
 # 🚀 Features
 
-| Resource | Operations                                          |
-| -------- | --------------------------------------------------- |
-| Payments | Create, retrieve and list payments                  |
-| Payouts  | Create, retrieve and list payouts                   |
-| Refunds  | Create, retrieve and list refunds                   |
-| Contacts | Create, retrieve, update, delete and list contacts  |
+| Resource      | Operations                                          |
+| ------------- | --------------------------------------------------- |
+| Payments      | Create, retrieve and list payments                  |
+| Payment Links | Create, retrieve, update and list payment links     |
+| Payouts       | Create, retrieve and list payouts                   |
+| Refunds       | Create, retrieve and list refunds                   |
+| Contacts      | Create, retrieve, update, delete and list contacts  |
 
 ---
 
@@ -32,7 +33,7 @@ https://paysuite.tech/docs
 Install the SDK via NuGet:
 
 ```bash
-dotnet add package PaySuite.Sdk --version 0.1.9
+dotnet add package PaySuite.Sdk --version 0.2.1
 ```
 
 Then:
@@ -97,6 +98,7 @@ After that:
 
 ```csharp
 client.Payments
+client.PaymentLinks
 client.Payouts
 client.Refunds
 client.Contacts
@@ -395,6 +397,190 @@ else
 ```
 
 > **Important:** do not use the data returned in the `body` before checking the request `status`. The outer `status` determines whether the response should be considered successful and whether the data can be used.
+
+
+---
+
+# 🔗 Payment Links
+
+The `PaymentLinks` resource lets you create, retrieve, update and list payment links. A payment link is a shareable URL where customers can pay without you creating a payment for each one.
+
+```csharp
+client.PaymentLinks
+```
+
+Required API abilities: `payment-link:read` (retrieve and list) and `payment-link:write` (create and update).
+
+## Payment Links
+
+The SDK validates:
+
+* `title` is required (and not empty on update)
+* `amount_mode` is `fixed` or `open`
+* `amount` is required when `amount_mode` is `fixed` (on create)
+* `amount` between `0.01` and `1,000,000` when provided
+* `return_url` is valid when provided
+* `page` ≥ 1 and `limit` between `1` and `100`
+---
+
+## Create Payment Link
+
+Endpoint:
+
+```text
+POST /api/v1/payment-links
+```
+
+### Fixed amount
+
+```csharp
+var response = await client.PaymentLinks.CreateAsync(
+    new CreatePaymentLinkRequest
+    {
+        Title = "Invoice payment",
+        Description = "Pay your invoice",
+        AmountMode = PaymentLinkAmountModes.Fixed,
+        Amount = 100.50m,
+        Method = "mpesa",
+        ReturnUrl = "https://example.com/success",
+        IsActive = true
+    }
+);
+
+var link = response.Data;
+
+Console.WriteLine($"Id  : {link?.Id}");
+Console.WriteLine($"Url : {link?.Url}");
+```
+
+JSON:
+
+```json
+{
+  "title": "Invoice payment",
+  "description": "Pay your invoice",
+  "amount_mode": "fixed",
+  "amount": 100.5,
+  "method": "mpesa",
+  "return_url": "https://example.com/success",
+  "is_active": true
+}
+```
+
+### Open amount
+
+With `open`, the customer chooses the amount, so `Amount` is not sent.
+
+```csharp
+var response = await client.PaymentLinks.CreateAsync(
+    new CreatePaymentLinkRequest
+    {
+        Title = "Donation",
+        AmountMode = PaymentLinkAmountModes.Open
+    }
+);
+```
+
+### Fields
+
+| Field         | Type    | Required    | Description                                           |
+| ------------- | ------- | ----------: | ----------------------------------------------------- |
+| `title`       | string  |         Yes | Link title                                            |
+| `description` | string  |          No | Link description                                      |
+| `amount_mode` | string  |         Yes | `fixed` or `open`                                     |
+| `amount`      | decimal | Conditional | Amount in MZN. Required when `amount_mode` is `fixed` |
+| `method`      | string  |          No | Payment method, e.g. `mpesa`                          |
+| `return_url`  | string  |          No | URL to redirect to after the payment is completed     |
+| `is_active`   | bool    |          No | Whether the link accepts payments                     |
+
+---
+
+## Retrieve Payment Link
+
+Endpoint:
+
+```text
+GET /api/v1/payment-links/{id}
+```
+
+```csharp
+var response = await client.PaymentLinks.GetAsync(
+    "01H8X9V8X9Y8Z9A8B8C8D8E8F8"
+);
+
+var link = response.Data;
+
+Console.WriteLine($"Id       : {link?.Id}");
+Console.WriteLine($"Title    : {link?.Title}");
+Console.WriteLine($"Amount   : {link?.Amount} {link?.Currency}");
+Console.WriteLine($"Active   : {link?.IsActive}");
+Console.WriteLine($"Url      : {link?.Url}");
+```
+
+---
+
+## Update Payment Link
+
+Endpoint:
+
+```text
+PATCH /api/v1/payment-links/{id}
+```
+
+Only the fields you set are sent. For example, to deactivate a link:
+
+```csharp
+var response = await client.PaymentLinks.UpdateAsync(
+    linkId,
+    new UpdatePaymentLinkRequest
+    {
+        IsActive = false
+    }
+);
+```
+
+JSON:
+
+```json
+{
+  "is_active": false
+}
+```
+
+To change the title and amount:
+
+```csharp
+var response = await client.PaymentLinks.UpdateAsync(
+    linkId,
+    new UpdatePaymentLinkRequest
+    {
+        Title = "Invoice payment (updated)",
+        AmountMode = PaymentLinkAmountModes.Fixed,
+        Amount = 150m
+    }
+);
+```
+
+> The API has no delete endpoint for payment links. To stop a link from accepting payments, set `IsActive = false`.
+
+---
+
+## List Payment Links
+
+Endpoint:
+
+```text
+GET /api/v1/payment-links
+```
+
+```csharp
+var response = await client.PaymentLinks.ListAsync(
+    page: 1,
+    limit: 20
+);
+```
+
+`limit` accepts values from 1 to 100.
 
 ---
 

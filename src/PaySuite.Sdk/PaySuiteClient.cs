@@ -13,6 +13,7 @@ public sealed class PaySuiteClient : IDisposable
     public PayoutsResource Payouts { get; }
     public RefundsResource Refunds { get; }
     public ContactsResource Contacts { get; }
+    public PaymentLinksResource PaymentLinks { get; } 
 
     /// <summary>Uso simples: só com o token.</summary>
     public PaySuiteClient(string token, PaySuiteOptions? options = null)
@@ -30,6 +31,7 @@ public sealed class PaySuiteClient : IDisposable
         Payouts = new PayoutsResource(api);
         Refunds = new RefundsResource(api);
         Contacts = new ContactsResource(api);
+        PaymentLinks = new PaymentLinksResource(api);
     }
 
     public static void Configure(HttpClient http, PaySuiteOptions options)
