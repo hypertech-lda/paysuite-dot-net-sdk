@@ -1779,13 +1779,13 @@ See the `LICENSE` file for the full license terms.
 
 ---
 
-# ⚠️ Disclaimer
+# ℹ️ About
 
-This project is an SDK developed by the community and has no official affiliation with PaySuite.
+This is the official PaySuite SDK for .NET.
 
 PaySuite and its respective products, services, financial services and trademarks belong to their respective owners.
 
-For official information about endpoints, authentication, parameters, webhooks, limits and API behavior, see:
+For the full reference on endpoints, authentication, parameters, webhooks, limits and API behavior, see:
 
 https://paysuite.tech/docs
 
