@@ -1,10 +1,8 @@
 # PaySuite .NET SDK
 
-Unofficial .NET SDK for integrating with the PaySuite API.
+Official .NET SDK for integrating with the PaySuite API.
 
 This project provides a typed, resource-oriented .NET API that makes it easier to integrate with PaySuite services.
-
-> ⚠️ **Notice:** this is an unofficial SDK. This project is not affiliated with, sponsored by, maintained by, or officially supported by PaySuite.
 
 ---
 
